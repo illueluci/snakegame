@@ -23,7 +23,7 @@ class Apple:
         self.x = random.randint(0,34) * SIZE
         self.y = random.randint(0,34) * SIZE
 
-class Golden_Apple(Apple):
+class GoldenApple(Apple):
     def __init__(self, parent_screen):
         super().__init__(parent_screen=parent_screen)
         self.image = pygame.image.load("resources/golden_apple.jpg").convert()
@@ -93,16 +93,37 @@ class Game:
         self.apple = Apple(self.surface)
         self.apple.draw()
         self.apple_eaten_number = 0
-        self.golden_apple = Golden_Apple(self.surface)
+        self.golden_apple = GoldenApple(self.surface)
+        self.clock = pygame.time.Clock()
         self.golden_apple_appear = False
-        # self.clock = pygame.time.Clock()
-        # self.clock.tick()
+        # self.golden_apple_event = pygame.USEREVENT + 1
+        self.current_time = pygame.time.get_ticks()
+        self.golden_apple_appear_time = 0
 
     def is_collision(self, x1, y1, x2, y2):
         if x2 <= x1 < x2 + SIZE:
             if y2 <= y1 < y2 + SIZE:
                 return True
         return False
+
+    def eating_apple(self, xa, ya):
+        if self.is_collision(self.snake.x[0], self.snake.y[0], xa, ya):
+            self.play_sound("Pop 1.mp3")
+            self.snake.increase_length()
+            self.apple.move()
+            pygame.time.wait(100)
+            self.apple_eaten_number += 1
+            # print(self.apple_eaten_number)
+
+    def eating_golden_apple(self, xa, ya):
+        if self.is_collision(self.snake.x[0], self.snake.y[0], xa, ya) and self.golden_apple_appear:
+            for i in range(5):
+                self.play_sound("Pop 1.mp3")
+                self.snake.increase_length()
+                self.golden_apple.move()
+                pygame.time.wait(100)
+            self.golden_apple_appear = False
+
 
     def is_out_of_bounds(self, x, y):
         if x < 0 or x > WINSIZE[0]-SIZE or y < 0 or y > WINSIZE[1]-SIZE:
@@ -131,39 +152,41 @@ class Game:
         self.snake.walk()
         self.apple.draw()
         self.display_score()
-
+        self.current_time = pygame.time.get_ticks()
         pygame.display.flip()
 
-        # snake coliding with apple
-        if self.is_collision(self.snake.x[0], self.snake.y[0], self.apple.x, self.apple.y):
-            self.play_sound("Pop 1.mp3")
-            self.snake.increase_length()
-            self.apple.move()
-            self.apple_eaten_number += 1
-            print(self.apple_eaten_number)
+        # snake colliding with apple
+        self.eating_apple(self.apple.x, self.apple.y)
+        # snake colliding with g.apple
+        self.eating_golden_apple(self.golden_apple.x, self.golden_apple.y)
 
         # g.apple appearance
 
+        if self.apple_eaten_number >= 10:
+            self.golden_apple_appear = True
+            self.golden_apple_appear_time = pygame.time.get_ticks()
+            self.apple_eaten_number = 0
+
+        if self.golden_apple_appear:
+            self.golden_apple.draw()
+            if self.current_time - self.golden_apple_appear_time > 10000:
+                self.golden_apple.move()
+                self.golden_apple_appear = False
+
+        # print(self.current_time, self.golden_apple_appear_time)
+        # print(self.golden_apple_appear)
+
         # if self.apple_eaten_number % 5 == 0 and self.apple_eaten_number != 0:
-        #     self.golden_apple_appear = True
-        #     a = 0
-        #     self.apple_eaten_number = 0
-        # 
-        # if self.golden_apple_appear:
-        #     self.golden_apple.draw()
-        #     a += 1
-        #     print(a)
-        #     if a > 100:
-        #         self.golden_apple_appear = False
+        #     pygame.time.set_timer(self.golden_apple_event, 10000)
 
         # g.apple collision
-        if self.is_collision(self.snake.x[0], self.snake.y[0], self.golden_apple.x, self.golden_apple.y):
-            for i in range(0,5):
-                self.play_sound("Pop 1.mp3")
-                self.snake.increase_length()
-                pygame.time.wait(100)
-            self.golden_apple.move()
-            self.golden_apple_appear = False
+        # if self.is_collision(self.snake.x[0], self.snake.y[0], self.golden_apple.x, self.golden_apple.y):
+        #     for i in range(0,5):
+        #         self.play_sound("Pop 1.mp3")
+        #         self.snake.increase_length()
+        #         pygame.time.wait(100)
+        #     self.golden_apple.move()
+            # self.golden_apple_appear = False
 
 
         #snake colliding with itself
@@ -191,7 +214,11 @@ class Game:
     def reset(self):
         self.snake = Snake(self.surface, SIL)
         self.apple = Apple(self.surface)
-        self.golden_apple = Golden_Apple(self.surface)
+        self.golden_apple = GoldenApple(self.surface)
+        self.current_time = 0
+        self.golden_apple_appear_time = 0
+        self.golden_apple_appear = False
+        self.apple_eaten_number = 0
 
     def run(self):
         running = True
@@ -214,6 +241,9 @@ class Game:
                         if event.key == K_RIGHT and not(self.snake.direction == "left"):
                             self.snake.move_right()
 
+                # if event.type == self.golden_apple_event:
+                #     self.golden_apple.draw()
+
                 elif event.type == QUIT:
                     running = False
             try:
@@ -224,7 +254,7 @@ class Game:
                 self.show_game_over()
                 pause = True
                 self.reset()
-            pygame.time.wait(100)
+            self.clock.tick(10)
 
 
 if __name__ == "__main__":
